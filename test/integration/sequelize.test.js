@@ -60,17 +60,6 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
       expect(sequelize.config.host).to.equal('127.0.0.1');
     });
 
-
-    it('should log deprecated warning if operators aliases were not set', () => {
-      sinon.stub(Utils, 'deprecate');
-      Support.createSequelizeInstance();
-      expect(Utils.deprecate.calledOnce).to.be.true;
-      expect(Utils.deprecate.args[0][0]).to.be.equal('String based operators are now deprecated. Please use Symbol based operators for better security, read more at http://docs.sequelizejs.com/manual/tutorial/querying.html#operators');
-      Utils.deprecate.reset();
-      Support.createSequelizeInstance({ operatorsAliases: {} });
-      expect(Utils.deprecate.called).to.be.false;
-    });
-
     it('should set operators aliases on dialect QueryGenerator', () => {
       const operatorsAliases = { fake: true };
       const sequelize = Support.createSequelizeInstance({ operatorsAliases });
@@ -152,7 +141,8 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
                 err.message.match(/connect ECONNREFUSED/) ||
                 err.message.match(/invalid port number/) ||
                 err.message.match(/should be >=? 0 and < 65536/) ||
-                err.message.match(/Login failed for user/)
+                err.message.match(/Login failed for user/) ||
+                err.message.match(/Port must be > 0 and < 65536/)
               ).to.be.ok;
             });
         });
@@ -273,6 +263,23 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
       return this.sequelize.query(this.insertQuery);
     });
 
+    it('executes a query if a placeholder value is an array', function() {
+      return this.sequelize.query(`INSERT INTO ${qq(this.User.tableName)} (username, email_address, ` +
+        `${qq('createdAt')}, ${qq('updatedAt')}) VALUES ?;`, {
+        replacements: [[
+          ['john', 'john@gmail.com', '2012-01-01 10:10:10', '2012-01-01 10:10:10'],
+          ['michael', 'michael@gmail.com', '2012-01-01 10:10:10', '2012-01-01 10:10:10']
+        ]]
+      })
+        .then(() => this.sequelize.query(`SELECT * FROM ${qq(this.User.tableName)};`, {
+          type: this.sequelize.QueryTypes.SELECT
+        }))
+        .then(rows => {
+          expect(rows).to.be.lengthOf(2);
+          expect(rows[0].username).to.be.equal('john');
+          expect(rows[1].username).to.be.equal('michael');
+        });
+    });
 
     describe('logging', () => {
       it('executes a query with global benchmarking option and default logger', () => {

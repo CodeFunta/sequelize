@@ -5,11 +5,12 @@ const chai = require('chai'),
   Support = require(__dirname + '/../support'),
   Sequelize = require('../../../index'),
   Promise = Sequelize.Promise,
-  current = Support.sequelize;
+  current = Support.sequelize,
+  dialect = Support.getTestDialect();
 
 describe(Support.getTestDialectTeaser('HasOne'), () => {
   describe('Model.associations', () => {
-    it('should store all assocations when associting to the same table multiple times', function() {
+    it('should store all associations when associating to the same table multiple times', function() {
       const User = this.sequelize.define('User', {}),
         Group = this.sequelize.define('Group', {});
 
@@ -17,7 +18,9 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
       Group.hasOne(User, { foreignKey: 'primaryGroupId', as: 'primaryUsers' });
       Group.hasOne(User, { foreignKey: 'secondaryGroupId', as: 'secondaryUsers' });
 
-      expect(Object.keys(Group.associations)).to.deep.equal(['User', 'primaryUsers', 'secondaryUsers']);
+      expect(
+        Object.keys(Group.associations)
+      ).to.deep.equal(['User', 'primaryUsers', 'secondaryUsers']);
     });
   });
 
@@ -58,8 +61,7 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
     });
   });
 
-
-  describe('getAssocation', () => {
+  describe('getAssociation', () => {
     if (current.dialect.supports.transactions) {
       it('supports transactions', function() {
         return Support.prepareTransactionTest(this.sequelize).then(sequelize => {
@@ -113,6 +115,45 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
                 });
               });
             });
+          });
+        });
+      });
+    });
+
+    it('supports schemas', function() {
+      const User = this.sequelize.define('User', { username: Support.Sequelize.STRING }).schema('admin'),
+        Group = this.sequelize.define('Group', { name: Support.Sequelize.STRING }).schema('admin');
+
+      Group.hasOne(User);
+
+      return this.sequelize.dropAllSchemas().then(() => {
+        return this.sequelize.createSchema('admin');
+      }).then(() => {
+        return Group.sync({force: true });
+      }).then(() => {
+        return User.sync({force: true });
+      }).then(() => {
+        return Promise.all([
+          User.create({ username: 'foo' }),
+          User.create({ username: 'foo' }),
+          Group.create({ name: 'bar' })
+        ]);
+      }).spread((fakeUser, user, group) => {
+        return group.setUser(user).then(() => {
+          return Group.all().then(groups => {
+            return groups[0].getUser().then(associatedUser => {
+              expect(associatedUser).not.to.be.null;
+              expect(associatedUser.id).to.equal(user.id);
+              expect(associatedUser.id).not.to.equal(fakeUser.id);
+            });
+          });
+        });
+      }).then(() => {
+        return this.sequelize.dropSchema('admin').then(() => {
+          return this.sequelize.showAllSchemas().then(schemas => {
+            if (dialect === 'postgres' || dialect === 'mssql') {
+              expect(schemas).to.be.empty;
+            };
           });
         });
       });
@@ -346,13 +387,14 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
   });
 
   describe('foreign key', () => {
-    it('should lowercase foreign keys when using underscored', function() {
+    it('should setup underscored field with foreign keys when using underscored', function() {
       const User = this.sequelize.define('User', { username: Sequelize.STRING }, { underscored: true }),
         Account = this.sequelize.define('Account', { name: Sequelize.STRING }, { underscored: true });
 
       Account.hasOne(User);
 
-      expect(User.rawAttributes.account_id).to.exist;
+      expect(User.rawAttributes.AccountId).to.exist;
+      expect(User.rawAttributes.AccountId.field).to.equal('account_id');
     });
 
     it('should use model name when using camelcase', function() {
@@ -362,6 +404,7 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
       Account.hasOne(User);
 
       expect(User.rawAttributes.AccountId).to.exist;
+      expect(User.rawAttributes.AccountId.field).to.equal('AccountId');
     });
 
     it('should support specifying the field of a foreign key', function() {
