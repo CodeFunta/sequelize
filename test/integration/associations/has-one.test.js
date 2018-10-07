@@ -2,7 +2,7 @@
 
 const chai = require('chai'),
   expect = chai.expect,
-  Support = require(__dirname + '/../support'),
+  Support = require('../support'),
   Sequelize = require('../../../index'),
   Promise = Sequelize.Promise,
   current = Support.sequelize,
@@ -76,10 +76,10 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
                 return Group.create({ name: 'bar' }).then(group => {
                   return sequelize.transaction().then(t => {
                     return group.setUser(user, { transaction: t }).then(() => {
-                      return Group.all().then(groups => {
+                      return Group.findAll().then(groups => {
                         return groups[0].getUser().then(associatedUser => {
                           expect(associatedUser).to.be.null;
-                          return Group.all({ transaction: t }).then(groups => {
+                          return Group.findAll({ transaction: t }).then(groups => {
                             return groups[0].getUser({ transaction: t }).then(associatedUser => {
                               expect(associatedUser).not.to.be.null;
                               expect(associatedUser.id).to.equal(user.id);
@@ -140,7 +140,7 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
         ]);
       }).spread((fakeUser, user, group) => {
         return group.setUser(user).then(() => {
-          return Group.all().then(groups => {
+          return Group.findAll().then(groups => {
             return groups[0].getUser().then(associatedUser => {
               expect(associatedUser).not.to.be.null;
               expect(associatedUser.id).to.equal(user.id);
@@ -174,7 +174,7 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
               return Group.create({ name: 'bar' }).then(group => {
                 return sequelize.transaction().then(t => {
                   return group.setUser(user, { transaction: t }).then(() => {
-                    return Group.all().then(groups => {
+                    return Group.findAll().then(groups => {
                       return groups[0].getUser().then(associatedUser => {
                         expect(associatedUser).to.be.null;
                         return t.rollback();
@@ -365,10 +365,10 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
             return User.create({ username: 'bob' }).then(user => {
               return sequelize.transaction().then(t => {
                 return user.createGroup({ name: 'testgroup' }, { transaction: t }).then(() => {
-                  return User.all().then(users => {
+                  return User.findAll().then(users => {
                     return users[0].getGroup().then(group => {
                       expect(group).to.be.null;
-                      return User.all({ transaction: t }).then(users => {
+                      return User.findAll({ transaction: t }).then(users => {
                         return users[0].getGroup({ transaction: t }).then(group => {
                           expect(group).to.be.not.null;
                           return t.rollback();
@@ -643,7 +643,7 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
 
   });
 
-  describe('Association column', () => {
+  describe('association column', () => {
     it('has correct type for non-id primary keys with non-integer type', function() {
       const User = this.sequelize.define('UserPKBT', {
         username: {
@@ -662,6 +662,97 @@ describe(Support.getTestDialectTeaser('HasOne'), () => {
 
       return this.sequelize.sync({ force: true }).then(() => {
         expect(User.rawAttributes.GroupPKBTName.type).to.an.instanceof(Sequelize.STRING);
+      });
+    });
+
+    it('should support a non-primary key as the association column on a target with custom primary key', function() {
+      const User = this.sequelize.define('User', {
+        user_name: {
+          unique: true,
+          type: Sequelize.STRING
+        }
+      });
+
+      const Task = this.sequelize.define('Task', {
+        title: Sequelize.STRING,
+        username: Sequelize.STRING
+      });
+
+      User.hasOne(Task, { foreignKey: 'username', sourceKey: 'user_name' });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return User.create({ user_name: 'bob' }).then(newUser => {
+          return Task.create({ title: 'some task' }).then(newTask => {
+            return newUser.setTask(newTask).then(() => {
+              return User.findOne({ where: { user_name: 'bob' } }).then(foundUser => {
+                return foundUser.getTask().then(foundTask => {
+                  expect(foundTask.title).to.equal('some task');
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+
+    it('should support a non-primary unique key as the association column', function() {
+      const User = this.sequelize.define('User', {
+        username: {
+          type: Sequelize.STRING,
+          unique: true
+        }
+      });
+
+      const Task = this.sequelize.define('Task', {
+        title: Sequelize.STRING,
+        username: Sequelize.STRING
+      });
+
+      User.hasOne(Task, { foreignKey: 'username', sourceKey: 'username' });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return User.create({ username: 'bob' }).then(newUser => {
+          return Task.create({ title: 'some task' }).then(newTask => {
+            return newUser.setTask(newTask).then(() => {
+              return User.findOne({ where: { username: 'bob' } }).then(foundUser => {
+                return foundUser.getTask().then(foundTask => {
+                  expect(foundTask.title).to.equal('some task');
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+
+    it('should support a non-primary unique key as the association column with a field option', function() {
+      const User = this.sequelize.define('User', {
+        username: {
+          type: Sequelize.STRING,
+          unique: true,
+          field: 'the_user_name_field'
+        }
+      });
+
+      const Task = this.sequelize.define('Task', {
+        title: Sequelize.STRING,
+        username: Sequelize.STRING
+      });
+
+      User.hasOne(Task, { foreignKey: 'username', sourceKey: 'username' });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return User.create({ username: 'bob' }).then(newUser => {
+          return Task.create({ title: 'some task' }).then(newTask => {
+            return newUser.setTask(newTask).then(() => {
+              return User.findOne({ where: { username: 'bob' } }).then(foundUser => {
+                return foundUser.getTask().then(foundTask => {
+                  expect(foundTask.title).to.equal('some task');
+                });
+              });
+            });
+          });
+        });
       });
     });
   });

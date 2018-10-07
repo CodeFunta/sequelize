@@ -4,9 +4,9 @@ const chai = require('chai'),
   sinon = require('sinon'),
   Sequelize = require('../../../index'),
   expect = chai.expect,
-  Support = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
-  config = require(__dirname + '/../../config/config'),
+  Support = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
+  config = require('../../config/config'),
   current = Support.sequelize;
 
 describe(Support.getTestDialectTeaser('Instance'), () => {
@@ -370,6 +370,16 @@ describe(Support.getTestDialectTeaser('Instance'), () => {
         return user.update({ username: 'person', foo: 'bar'}).then(user => {
           expect(user.username).to.equal('person');
           expect(user.foo).not.to.exist;
+        });
+      });
+    });
+
+    it('ignores undefined attributes', function() {
+      return this.User.sync({force: true}).bind(this).then(() => {
+        return this.User.create({ username: 'user' }).then(user => {
+          return user.update({ username: undefined }).then(user => {
+            expect(user.username).to.equal('user');
+          });
         });
       });
     });

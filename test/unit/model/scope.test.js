@@ -2,8 +2,10 @@
 
 const chai = require('chai'),
   expect = chai.expect,
-  Support   = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+  Sequelize = require('../../../index'),
+  Op = Sequelize.Op,
+  Support   = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
   current   = Support.sequelize;
 
 describe(Support.getTestDialectTeaser('Model'), () => {
@@ -27,6 +29,9 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       where: {
         something: false
       }
+    },
+    sequelize_where: {
+      where: Sequelize.where()
     },
     users: {
       include: [
@@ -135,10 +140,11 @@ describe(Support.getTestDialectTeaser('Model'), () => {
     });
 
     it('should be able to merge scopes', () => {
-      expect(Company.scope('somethingTrue', 'somethingFalse')._scope).to.deep.equal({
+      expect(Company.scope('somethingTrue', 'somethingFalse', 'sequelize_where')._scope).to.deep.equal({
         where: {
           something: false,
-          somethingElse: 42
+          somethingElse: 42,
+          [Op.and]: Sequelize.where()
         },
         limit: 5
       });
@@ -229,7 +235,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       });
     });
 
-    it('should emit an error for scopes that dont exist', () => {
+    it("should emit an error for scopes that don't exist", () => {
       expect(() => {
         Company.scope('doesntexist');
       }).to.throw('Invalid scope doesntexist called.');
@@ -294,6 +300,14 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       }).to.throw('The scope defaultScope already exists. Pass { override: true } as options to silence this error');
     });
 
+    it('should not warn if default scope is not defined', () => {
+      const Model = current.define('model');
+
+      expect(() => {
+        Model.addScope('defaultScope', {});
+      }).not.to.throw();
+    });
+
     it('allows me to override a default scope', () => {
       Company.addScope('defaultScope', {
         include: [Project]
@@ -337,7 +351,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
         limit: 9
       };
 
-      current.Model._injectScope.call({
+      Sequelize.Model._injectScope.call({
         _scope: scope
       }, options);
 
@@ -361,7 +375,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
 
       const options = {};
 
-      current.Model._injectScope.call({
+      Sequelize.Model._injectScope.call({
         _scope: scope
       }, options);
 
@@ -378,7 +392,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
         include: [{ model: Project, where: { something: true }}]
       };
 
-      current.Model._injectScope.call({
+      Sequelize.Model._injectScope.call({
         _scope: scope
       }, options);
 
@@ -395,7 +409,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
         include: [{model: User, as: 'otherUser'}]
       };
 
-      current.Model._injectScope.call({
+      Sequelize.Model._injectScope.call({
         _scope: scope
       }, options);
 
@@ -417,7 +431,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
         ]
       };
 
-      current.Model._injectScope.call({
+      Sequelize.Model._injectScope.call({
         _scope: scope
       }, options);
 
@@ -440,7 +454,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
           ]
         };
 
-        current.Model._injectScope.call({
+        Sequelize.Model._injectScope.call({
           _scope: scope
         }, options);
 
@@ -463,7 +477,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
           ]
         };
 
-        current.Model._injectScope.call({
+        Sequelize.Model._injectScope.call({
           _scope: scope
         }, options);
 

@@ -2,7 +2,7 @@
 
 const chai = require('chai'),
   expect = chai.expect,
-  Support = require(__dirname + '/support'),
+  Support = require('./support'),
   Sequelize = Support.Sequelize,
   dialect = Support.getTestDialect();
 
@@ -119,6 +119,20 @@ describe('Sequelize', () => {
 
       expect(config.username).to.not.be.ok;
       expect(config.password).to.be.null;
+    });
+
+    it('should correctly set the username, the password and the database through options', () => {
+      const options = {
+        username: 'root',
+        password: 'pass',
+        database: 'dbname'
+      };
+      const sequelize = new Sequelize('mysql://example.com:9821', options);
+      const config = sequelize.config;
+
+      expect(config.username).to.equal(options.username);
+      expect(config.password).to.equal(options.password);
+      expect(config.database).to.equal(options.database);
     });
 
     it('should use the default port when no other is specified', () => {

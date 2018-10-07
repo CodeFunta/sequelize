@@ -2,14 +2,14 @@
 
 const chai = require('chai'),
   expect = chai.expect,
-  Support = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+  Support = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
   Sequelize = require('../../../index'),
   _ = require('lodash'),
   sinon = require('sinon'),
   Promise = Sequelize.Promise,
+  Op = Sequelize.Op,
   current = Support.sequelize,
-  Op = current.Op,
   dialect = Support.getTestDialect();
 
 describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
@@ -55,12 +55,12 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
           this.t = t;
           return article.setLabels([label], { transaction: t });
         }).then(function() {
-          return this.Article.all({ transaction: this.t });
+          return this.Article.findAll({ transaction: this.t });
         }).then(articles => {
           return articles[0].getLabels();
         }).then(function(labels) {
           expect(labels).to.have.length(0);
-          return this.Article.all({ transaction: this.t });
+          return this.Article.findAll({ transaction: this.t });
         }).then(function(articles) {
           return articles[0].getLabels({ transaction: this.t });
         }).then(function(labels) {
@@ -71,7 +71,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     }
 
     it('gets all associated objects with all fields', function() {
-      return this.User.find({where: {username: 'John'}}).then(john => {
+      return this.User.findOne({where: {username: 'John'}}).then(john => {
         return john.getTasks();
       }).then(tasks => {
         Object.keys(tasks[0].rawAttributes).forEach(attr => {
@@ -81,7 +81,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     });
 
     it('gets all associated objects when no options are passed', function() {
-      return this.User.find({where: {username: 'John'}}).then(john => {
+      return this.User.findOne({where: {username: 'John'}}).then(john => {
         return john.getTasks();
       }).then(tasks => {
         expect(tasks).to.have.length(2);
@@ -89,7 +89,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     });
 
     it('only get objects that fulfill the options', function() {
-      return this.User.find({where: {username: 'John'}}).then(john => {
+      return this.User.findOne({where: {username: 'John'}}).then(john => {
         return john.getTasks({
           where: {
             active: true
@@ -101,7 +101,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     });
 
     it('supports a where not in', function() {
-      return this.User.find({
+      return this.User.findOne({
         where: {
           username: 'John'
         }
@@ -121,7 +121,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     it('supports a where not in on the primary key', function() {
       const self = this;
 
-      return this.User.find({
+      return this.User.findOne({
         where: {
           username: 'John'
         }
@@ -139,7 +139,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     });
 
     it('only gets objects that fulfill options with a formatted value', function() {
-      return this.User.find({where: {username: 'John'}}).then(john => {
+      return this.User.findOne({where: {username: 'John'}}).then(john => {
         return john.getTasks({where: {active: true}});
       }).then(tasks => {
         expect(tasks).to.have.length(1);
@@ -147,7 +147,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
     });
 
     it('get associated objects with an eager load', function() {
-      return this.User.find({where: {username: 'John'}, include: [this.Task]}).then(john => {
+      return this.User.findOne({where: {username: 'John'}, include: [this.Task]}).then(john => {
         expect(john.Tasks).to.have.length(2);
       });
     });
@@ -161,7 +161,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
       Label.belongsTo(Task);
 
       return Label.sync({force: true}).then(() => {
-        return User.find({
+        return User.findOne({
           where: { username: 'John'},
           include: [
             { model: Task, required: false, include: [
@@ -734,6 +734,36 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
         expect(commentTags).to.have.length(2);
       });
     });
+
+    it('should catch EmptyResultError when rejectOnEmpty is set', function() {
+      const User = this.sequelize.define(
+        'User',
+        { username: DataTypes.STRING },
+        { rejectOnEmpty: true }
+      );
+      const Task = this.sequelize.define(
+        'Task',
+        { title: DataTypes.STRING }
+      );
+
+      User.belongsToMany(Task, { through: 'UserTasks' });
+      Task.belongsToMany(User, { through: 'UserTasks' });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return Promise.all([
+          User.create({ id: 12 }),
+          Task.create({ id: 50, title: 'get started' }),
+          Task.create({ id: 51, title: 'following up' })
+        ]);
+      }).spread((user, task1, task2) => {
+        return user.setTasks([task1, task2]).return(user);
+      }).then(user => {
+        return user.getTasks();
+      }).then(userTasks => {
+        expect(userTasks).to.be.an('array').that.has.a.lengthOf(2);
+        expect(userTasks[0]).to.be.an.instanceOf(Task);
+      });
+    });
   });
 
   describe('createAssociations', () => {
@@ -997,6 +1027,55 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
       User.belongsToMany(Task, { through: 'UserTasks' });
       Task.belongsToMany(User, { through: 'UserTasks' });
       return this.sequelize.sync({ force: true });
+    });
+
+    it('should catch EmptyResultError when rejectOnEmpty is set', function() {
+      const User = this.sequelize.define(
+        'User',
+        { username: DataTypes.STRING },
+        { rejectOnEmpty: true }
+      );
+      const Task = this.sequelize.define(
+        'Task',
+        { title: DataTypes.STRING }
+      );
+
+      User.belongsToMany(Task, { through: 'UserTasks' });
+      Task.belongsToMany(User, { through: 'UserTasks' });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return Promise.all([
+          User.create({ id: 12 }),
+          Task.create({ id: 50, title: 'get started' })
+        ]);
+      }).spread((user, task) => {
+        return user.addTask(task).return(user);
+      }).then(user => {
+        return user.getTasks();
+      }).then(tasks => {
+        expect(tasks[0].title).to.equal('get started');
+      });
+    });
+
+    it('should returns array of intermediate table', function() {
+      const User = this.sequelize.define('User');
+      const Task = this.sequelize.define('Task');
+      const UserTask = this.sequelize.define('UserTask');
+
+      User.belongsToMany(Task, { through: UserTask });
+      Task.belongsToMany(User, { through: UserTask });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        return Promise.all([
+          User.create(),
+          Task.create()
+        ]).spread((user, task) => {
+          return user.addTask(task);
+        }).then(userTasks => {
+          expect(userTasks).to.be.an('array').that.has.a.lengthOf(1);
+          expect(userTasks[0]).to.be.an.instanceOf(UserTask);
+        });
+      });
     });
   });
 
@@ -1338,7 +1417,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
         }).return (user);
       }).then(user => {
         expect(spy).to.have.been.calledTwice;
-        spy.reset();
+        spy.resetHistory();
         return Promise.join(
           user,
           user.getProjects({
@@ -1377,14 +1456,14 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
         return user.addProject(project, { logging: spy }).return (user);
       }).then(user => {
         expect(spy.calledTwice).to.be.ok; // Once for SELECT, once for INSERT
-        spy.reset();
+        spy.resetHistory();
         return user.getProjects({
           logging: spy
         });
       }).then(projects => {
         const project = projects[0];
         expect(spy.calledOnce).to.be.ok;
-        spy.reset();
+        spy.resetHistory();
 
         expect(project).to.be.ok;
         return self.user.removeProject(project, {
@@ -1512,8 +1591,8 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
       expect(Object.keys(this.UserTasks2.primaryKeys)).to.deep.equal(['userTasksId']);
 
       _.each([this.UserTasks, this.UserTasks2], model => {
-        fk = Object.keys(model.options.uniqueKeys)[0];
-        expect(model.options.uniqueKeys[fk].fields.sort()).to.deep.equal(['TaskId', 'UserId']);
+        fk = Object.keys(model.uniqueKeys)[0];
+        expect(model.uniqueKeys[fk].fields.sort()).to.deep.equal(['TaskId', 'UserId']);
       });
     });
 
@@ -1616,7 +1695,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
 
             return u.addProject(p);
           }).then(function() {
-            return this.UserProjects.find({ where: { UserId: this.u.id, ProjectId: this.p.id }});
+            return this.UserProjects.findOne({ where: { UserId: this.u.id, ProjectId: this.p.id }});
           }).then(up => {
             expect(up.status).to.equal('active');
           });
@@ -2076,8 +2155,8 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
           ]);
         }).then(function() {
           return Promise.all([
-            expect(this.user1.destroy()).to.have.been.rejectedWith(self.sequelize.ForeignKeyConstraintError), // Fails because of RESTRICT constraint
-            expect(this.task2.destroy()).to.have.been.rejectedWith(self.sequelize.ForeignKeyConstraintError)
+            expect(this.user1.destroy()).to.have.been.rejectedWith(Sequelize.ForeignKeyConstraintError), // Fails because of RESTRICT constraint
+            expect(this.task2.destroy()).to.have.been.rejectedWith(Sequelize.ForeignKeyConstraintError)
           ]);
         });
       });
@@ -2106,7 +2185,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
           );
         }).then(function() {
           return Sequelize.Promise.join(
-            expect(this.user1.destroy()).to.have.been.rejectedWith(self.sequelize.ForeignKeyConstraintError), // Fails because of RESTRICT constraint
+            expect(this.user1.destroy()).to.have.been.rejectedWith(Sequelize.ForeignKeyConstraintError), // Fails because of RESTRICT constraint
             this.task2.destroy()
           );
         }).then(function() {
@@ -2156,6 +2235,35 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
         expect(ut2).to.have.length(1);
       });
     });
+
+    it('create custom unique identifier', function() {
+      this.UserTasksLong = this.sequelize.define('table_user_task_with_very_long_name', {
+        id_user_very_long_field: {
+          type: DataTypes.INTEGER(1)
+        },
+        id_task_very_long_field: {
+          type: DataTypes.INTEGER(1)
+        }
+      },
+      { tableName: 'table_user_task_with_very_long_name' }
+      );
+      this.User.belongsToMany(this.Task, {
+        as: 'MyTasks',
+        through: this.UserTasksLong,
+        foreignKey: 'id_user_very_long_field'
+      });
+      this.Task.belongsToMany(this.User, {
+        as: 'MyUsers',
+        through: this.UserTasksLong,
+        foreignKey: 'id_task_very_long_field',
+        uniqueKey: 'custom_user_group_unique'
+      });
+
+      return this.sequelize.sync({ force: true }).then(() => {
+        expect(this.Task.associations.MyUsers.through.model.rawAttributes.id_user_very_long_field.unique).to.equal('custom_user_group_unique');
+        expect(this.Task.associations.MyUsers.through.model.rawAttributes.id_task_very_long_field.unique).to.equal('custom_user_group_unique');
+      });
+    });
   });
 
   describe('Association options', () => {
@@ -2192,22 +2300,21 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
       const User = this.sequelize.define('User', {
           name: Sequelize.STRING(100)
         }),
-        Follow = this.sequelize.define('Follow'),
-        self = this;
+        Follow = this.sequelize.define('Follow');
 
       User.belongsToMany(User, { through: Follow, as: 'User' });
       User.belongsToMany(User, { through: Follow, as: 'Fan' });
 
       return this.sequelize.sync({ force: true })
         .then(() => {
-          return self.sequelize.Promise.all([
+          return Sequelize.Promise.all([
             User.create({ name: 'Khsama' }),
             User.create({ name: 'Vivek' }),
             User.create({ name: 'Satya' })
           ]);
         })
         .then(users => {
-          return self.sequelize.Promise.all([
+          return Sequelize.Promise.all([
             users[0].addFan(users[1]),
             users[1].addUser(users[2]),
             users[2].addFan(users[0])
@@ -2219,8 +2326,7 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
       const User = this.sequelize.define('User', {
           name: Sequelize.STRING(100)
         }),
-        UserFollowers = this.sequelize.define('UserFollower'),
-        self = this;
+        UserFollowers = this.sequelize.define('UserFollower');
 
       User.belongsToMany(User, {
         as: {
@@ -2241,13 +2347,13 @@ describe(Support.getTestDialectTeaser('BelongsToMany'), () => {
 
       return this.sequelize.sync({ force: true })
         .then(() => {
-          return self.sequelize.Promise.all([
+          return Sequelize.Promise.all([
             User.create({ name: 'Jalrangi' }),
             User.create({ name: 'Sargrahi' })
           ]);
         })
         .then(users => {
-          return self.sequelize.Promise.all([
+          return Sequelize.Promise.all([
             users[0].addFollower(users[1]),
             users[1].addFollower(users[0]),
             users[0].addInvitee(users[1]),

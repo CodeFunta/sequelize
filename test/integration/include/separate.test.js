@@ -3,9 +3,9 @@
 const chai = require('chai'),
   expect = chai.expect,
   sinon = require('sinon'),
-  Support = require(__dirname + '/../support'),
-  Sequelize = require(__dirname + '/../../../index'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+  Support = require('../support'),
+  Sequelize = require('../../../index'),
+  DataTypes = require('../../../lib/data-types'),
   current = Support.sequelize,
   dialect = Support.getTestDialect(),
   Promise = Sequelize.Promise,
@@ -101,6 +101,65 @@ if (current.dialect.supports.groupedLimit) {
             expect(sqlSpy).to.have.been.calledTwice;
           });
         });
+      });
+
+      it('should work even if include does not specify foreign key attribute with custom sourceKey', function() {
+        const User = this.sequelize.define('User', {
+          name: DataTypes.STRING,
+          userExtraId: {
+            type: DataTypes.INTEGER,
+            unique: true
+          }
+        });
+        const Task = this.sequelize.define('Task', {
+          title: DataTypes.STRING
+        });
+        const sqlSpy = sinon.spy();
+
+        User.Tasks = User.hasMany(Task, {
+          as: 'tasks',
+          foreignKey: 'userId',
+          sourceKey: 'userExtraId'
+        });
+
+        return this.sequelize
+          .sync({force: true})
+          .then(() => {
+            return User.create({
+              id: 1,
+              userExtraId: 222,
+              tasks: [
+                {},
+                {},
+                {}
+              ]
+            }, {
+              include: [User.Tasks]
+            });
+          })
+          .then(() => {
+            return User.findAll({
+              attributes: ['name'],
+              include: [
+                {
+                  attributes: [
+                    'title'
+                  ],
+                  association: User.Tasks,
+                  separate: true
+                }
+              ],
+              order: [
+                ['id', 'ASC']
+              ],
+              logging: sqlSpy
+            });
+          })
+          .then(users => {
+            expect(users[0].get('tasks')).to.be.ok;
+            expect(users[0].get('tasks').length).to.equal(3);
+            expect(sqlSpy).to.have.been.calledTwice;
+          });
       });
 
       it('should not break a nested include with null values', function() {

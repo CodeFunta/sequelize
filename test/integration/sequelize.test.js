@@ -3,19 +3,17 @@
 const chai = require('chai'),
   expect = chai.expect,
   assert = chai.assert,
-  Support = require(__dirname + '/support'),
-  DataTypes = require(__dirname + '/../../lib/data-types'),
+  Support = require('./support'),
+  DataTypes = require('../../lib/data-types'),
   dialect = Support.getTestDialect(),
   _ = require('lodash'),
-  Sequelize = require(__dirname + '/../../index'),
-  config = require(__dirname + '/../config/config'),
+  Sequelize = require('../../index'),
+  config = require('../config/config'),
   moment = require('moment'),
-  Transaction = require(__dirname + '/../../lib/transaction'),
-  Utils = require(__dirname + '/../../lib/utils'),
+  Transaction = require('../../lib/transaction'),
+  logger = require('../../lib/utils/logger'),
   sinon = require('sinon'),
-  semver = require('semver'),
   current = Support.sequelize;
-
 
 const qq = function(str) {
   if (dialect === 'postgres' || dialect === 'mssql') {
@@ -30,22 +28,8 @@ const qq = function(str) {
 describe(Support.getTestDialectTeaser('Sequelize'), () => {
   describe('constructor', () => {
     afterEach(() => {
-      Utils.deprecate.restore && Utils.deprecate.restore();
+      logger.deprecate.restore && logger.deprecate.restore();
     });
-
-    if (dialect !== 'sqlite') {
-      it.skip('should work with min connections', () => {
-        const ConnectionManager = current.dialect.connectionManager,
-          connectionSpy = ConnectionManager.connect = chai.spy(ConnectionManager.connect);
-
-        Support.createSequelizeInstance({
-          pool: {
-            min: 2
-          }
-        });
-        expect(connectionSpy).to.have.been.called.twice;
-      });
-    }
 
     it('should pass the global options correctly', () => {
       const sequelize = Support.createSequelizeInstance({ logging: false, define: { underscored: true } }),
@@ -202,6 +186,12 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
     });
   });
 
+  describe('getDatabaseName', () => {
+    it('returns the database name', function() {
+      expect(this.sequelize.getDatabaseName()).to.equal(this.sequelize.config.database);
+    });
+  });
+
   describe('isDefined', () => {
     it('returns false if the dao wasn\'t defined before', function() {
       expect(this.sequelize.isDefined('Project')).to.be.false;
@@ -294,33 +284,6 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
           expect(logger.args[0][0]).to.be.match(/Executed \(default\): select 1; Elapsed time: \d+ms/);
         });
       });
-
-      // We can only test MySQL warnings when using MySQL.
-      if (dialect === 'mysql') {
-        it('logs warnings when there are warnings', function() {
-
-          // Due to strict MySQL 5.7 all cases below will throw errors rather than warnings
-          if (semver.gte(current.options.databaseVersion, '5.6.0')) {
-            return;
-          }
-
-          const logger = sinon.spy();
-          const sequelize = Support.createSequelizeInstance({
-            logging: logger,
-            benchmark: false,
-            showWarnings: true
-          });
-          const insertWarningQuery = 'INSERT INTO ' + qq(this.User.tableName) + ' (username, email_address, ' +
-            qq('createdAt') + ', ' + qq('updatedAt') +
-            ") VALUES ('john', 'john@gmail.com', 'HORSE', '2012-01-01 10:10:10')";
-
-          return sequelize.query(insertWarningQuery)
-            .then(() => {
-              expect(logger.callCount).to.equal(3);
-              expect(logger.args[2][0]).to.be.match(/^MySQL Warnings \(default\):.*?'createdAt'/m);
-            });
-        });
-      }
 
       it('executes a query with global benchmarking option and custom logger', () => {
         const logger = sinon.spy();
@@ -1147,7 +1110,7 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
 
       it('through Sequelize.sync()', function() {
         const self = this;
-        self.spy.reset();
+        self.spy.resetHistory();
         return this.sequelize.sync({ force: true, logging: false }).then(() => {
           expect(self.spy.notCalled).to.be.true;
         });
@@ -1155,7 +1118,7 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
 
       it('through DAOFactory.sync()', function() {
         const self = this;
-        self.spy.reset();
+        self.spy.resetHistory();
         return this.User.sync({ force: true, logging: false }).then(() => {
           expect(self.spy.notCalled).to.be.true;
         });
@@ -1185,12 +1148,12 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
 
   describe('import', () => {
     it('imports a dao definition from a file absolute path', function() {
-      const Project = this.sequelize.import(__dirname + '/assets/project');
+      const Project = this.sequelize.import('assets/project');
       expect(Project).to.exist;
     });
 
     it('imports a dao definition with a default export', function() {
-      const Project = this.sequelize.import(__dirname + '/assets/es6project');
+      const Project = this.sequelize.import('assets/es6project');
       expect(Project).to.exist;
     });
 
@@ -1202,6 +1165,16 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
       });
 
       expect(Project).to.exist;
+    });
+  });
+
+  describe('define', () => {
+    it('raises an error if no values are defined', function() {
+      expect(() => {
+        this.sequelize.define('omnomnom', {
+          bla: { type: DataTypes.ARRAY }
+        });
+      }).to.throw(Error, 'ARRAY is missing type definition for its values.');
     });
   });
 
@@ -1383,7 +1356,7 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
             return self.sequelizeWithTransaction.transaction().then(t1 => {
               return User.create({ username: 'foo' }, { transaction: t1 }).then(user => {
                 return self.sequelizeWithTransaction.transaction({ transaction: t1 }).then(t2 => {
-                  return user.updateAttributes({ username: 'bar' }, { transaction: t2 }).then(() => {
+                  return user.update({ username: 'bar' }, { transaction: t2 }).then(() => {
                     return t2.commit().then(() => {
                       return user.reload({ transaction: t1 }).then(newUser => {
                         expect(newUser.username).to.equal('bar');
@@ -1468,7 +1441,7 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
             return self.sequelizeWithTransaction.transaction().then(t1 => {
               return User.create({ username: 'foo' }, { transaction: t1 }).then(user => {
                 return self.sequelizeWithTransaction.transaction({ transaction: t1 }).then(t2 => {
-                  return user.updateAttributes({ username: 'bar' }, { transaction: t2 }).then(() => {
+                  return user.update({ username: 'bar' }, { transaction: t2 }).then(() => {
                     return t2.rollback().then(() => {
                       return user.reload({ transaction: t1 }).then(newUser => {
                         expect(newUser.username).to.equal('foo');
@@ -1490,7 +1463,7 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
             return self.sequelizeWithTransaction.transaction().then(t1 => {
               return User.create({ username: 'foo' }, { transaction: t1 }).then(user => {
                 return self.sequelizeWithTransaction.transaction({ transaction: t1 }).then(t2 => {
-                  return user.updateAttributes({ username: 'bar' }, { transaction: t2 }).then(() => {
+                  return user.update({ username: 'bar' }, { transaction: t2 }).then(() => {
                     return t1.rollback().then(() => {
                       return User.findAll().then(users => {
                         expect(users.length).to.equal(0);
@@ -1543,7 +1516,7 @@ describe(Support.getTestDialectTeaser('Sequelize'), () => {
           }).then(destroyedUser => {
             expect(destroyedUser.deletedAt).to.exist;
             expect(Number(destroyedUser.deletedAt)).not.to.equal(epoch);
-            return User.findById(destroyedUser.id, { paranoid: false });
+            return User.findByPk(destroyedUser.id, { paranoid: false });
           }).then(fetchedDestroyedUser => {
             expect(fetchedDestroyedUser.deletedAt).to.exist;
             expect(Number(fetchedDestroyedUser.deletedAt)).not.to.equal(epoch);

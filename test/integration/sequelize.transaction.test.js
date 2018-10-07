@@ -2,9 +2,9 @@
 
 const chai = require('chai'),
   expect = chai.expect,
-  Support = require(__dirname + '/support'),
-  Promise = require(__dirname + '/../../lib/promise'),
-  Transaction = require(__dirname + '/../../lib/transaction'),
+  Support = require('./support'),
+  Promise = require('../../lib/promise'),
+  Transaction = require('../../lib/transaction'),
   sinon = require('sinon'),
   current = Support.sequelize;
 
@@ -12,7 +12,7 @@ if (current.dialect.supports.transactions) {
 
   describe(Support.getTestDialectTeaser('Sequelize#transaction'), () => {
     beforeEach(function() {
-      this.sinon = sinon.sandbox.create();
+      this.sinon = sinon.createSandbox();
     });
 
     afterEach(function() {
@@ -85,7 +85,7 @@ if (current.dialect.supports.transactions) {
               return t.commit();
             });
           }).then(function() {
-            return this.User.all();
+            return this.User.findAll();
           }).then(users => {
             expect(users.length).to.equal(1);
             expect(users[0].name).to.equal('foo');

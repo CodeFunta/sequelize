@@ -1,7 +1,7 @@
 'use strict';
 
-const Support   = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+const Support   = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
   Sequelize = Support.Sequelize,
   chai = require('chai'),
   util = require('util'),
@@ -420,7 +420,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           dataType: DataTypes.TINYINT(2),
           expect: {
             default: 'TINYINT(2)',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -428,7 +429,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           dataType: DataTypes.TINYINT({ length: 2 }),
           expect: {
             default: 'TINYINT(2)',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -436,7 +438,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           dataType: DataTypes.TINYINT.UNSIGNED,
           expect: {
             default: 'TINYINT UNSIGNED',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -445,7 +448,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           expect: {
             default: 'TINYINT(2) UNSIGNED',
             sqlite: 'TINYINT UNSIGNED(2)',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -453,7 +457,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           dataType: DataTypes.TINYINT.UNSIGNED.ZEROFILL,
           expect: {
             default: 'TINYINT UNSIGNED ZEROFILL',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -462,7 +467,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           expect: {
             default: 'TINYINT(2) UNSIGNED ZEROFILL',
             sqlite: 'TINYINT UNSIGNED ZEROFILL(2)',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -470,7 +476,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           dataType: DataTypes.TINYINT.ZEROFILL,
           expect: {
             default: 'TINYINT ZEROFILL',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -479,7 +486,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           expect: {
             default: 'TINYINT(2) ZEROFILL',
             sqlite: 'TINYINT ZEROFILL(2)',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -487,7 +495,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           dataType: DataTypes.TINYINT.ZEROFILL.UNSIGNED,
           expect: {
             default: 'TINYINT UNSIGNED ZEROFILL',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         },
         {
@@ -496,7 +505,8 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           expect: {
             default: 'TINYINT(2) UNSIGNED ZEROFILL',
             sqlite: 'TINYINT UNSIGNED ZEROFILL(2)',
-            mssql: 'TINYINT'
+            mssql: 'TINYINT',
+            postgres: 'TINYINT'
           }
         }
       ];
@@ -1296,32 +1306,10 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
           }).to.throw(Sequelize.ValidationError, 'A range must be an array with two elements');
         });
 
-        test('should throw an error if `value.inclusive` is invalid', () => {
-          const type = DataTypes.RANGE();
-
-          expect(() => {
-            type.validate({ inclusive: 'foobar' });
-          }).to.throw(Sequelize.ValidationError, '"foobar" is not a valid range');
-        });
-
-        test('should throw an error if `value.inclusive` is not an array with two elements', () => {
-          const type = DataTypes.RANGE();
-
-          expect(() => {
-            type.validate({ inclusive: [1] });
-          }).to.throw(Sequelize.ValidationError, 'A range must be an array with two elements');
-        });
-
         test('should return `true` if `value` is a range', () => {
           const type = DataTypes.RANGE();
 
           expect(type.validate([1, 2])).to.equal(true);
-        });
-
-        test('should return `true` if `value.inclusive` is a range', () => {
-          const type = DataTypes.RANGE();
-
-          expect(type.validate({ inclusive: [1, 2] })).to.equal(true);
         });
       });
     });

@@ -3,8 +3,8 @@
 const chai = require('chai'),
   sinon = require('sinon'),
   expect = chai.expect,
-  Support = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+  Support = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
   Sequelize = require('../../../index'),
   Promise = Sequelize.Promise,
   current = Support.sequelize,
@@ -77,10 +77,10 @@ describe(Support.getTestDialectTeaser('BelongsTo'), () => {
               return Group.create({ name: 'bar' }).then(group => {
                 return sequelize.transaction().then(t => {
                   return group.setUser(user, { transaction: t }).then(() => {
-                    return Group.all().then(groups => {
+                    return Group.findAll().then(groups => {
                       return groups[0].getUser().then(associatedUser => {
                         expect(associatedUser).to.be.null;
-                        return Group.all({ transaction: t }).then(groups => {
+                        return Group.findAll({ transaction: t }).then(groups => {
                           return groups[0].getUser({ transaction: t }).then(associatedUser => {
                             expect(associatedUser).to.be.not.null;
                             return t.rollback();
@@ -162,8 +162,8 @@ describe(Support.getTestDialectTeaser('BelongsTo'), () => {
             autoIncrement: true,
             allowNull: false
           }
-        }).schema('archive')
-        , Task = this.sequelize.define('TaskXYZ', {
+        }).schema('archive'),
+        Task = this.sequelize.define('TaskXYZ', {
           user_id: {
             type: Sequelize.INTEGER,
             references: { model: User, key: 'uid' }
@@ -207,7 +207,7 @@ describe(Support.getTestDialectTeaser('BelongsTo'), () => {
               return Group.create({ name: 'bar' }).then(group => {
                 return sequelize.transaction().then(t => {
                   return group.setUser(user, { transaction: t }).then(() => {
-                    return Group.all().then(groups => {
+                    return Group.findAll().then(groups => {
                       return groups[0].getUser().then(associatedUser => {
                         expect(associatedUser).to.be.null;
                         return t.rollback();
@@ -412,11 +412,9 @@ describe(Support.getTestDialectTeaser('BelongsTo'), () => {
 
       return this.sequelize.sync({ force: true }).then(() => {
         return Task.create({ title: 'task' }).then(task => {
-          return task.createUser({ username: 'bob' }).then(() => {
-            return task.getUser().then(user => {
-              expect(user).not.to.be.null;
-              expect(user.username).to.equal('bob');
-            });
+          return task.createUser({ username: 'bob' }).then(user => {
+            expect(user).not.to.be.null;
+            expect(user.username).to.equal('bob');
           });
         });
       });
@@ -567,7 +565,7 @@ describe(Support.getTestDialectTeaser('BelongsTo'), () => {
             // set recipients
             .then(() => mail.setRecipients([1]))
         )
-        .then(() => Entry.findAndCount({
+        .then(() => Entry.findAndCountAll({
           offset: 0,
           limit: 10,
           order: [['id', 'DESC']],

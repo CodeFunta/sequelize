@@ -23,7 +23,7 @@ Built instances will automatically get default values when they were defined&col
 // first define the model
 const Task = sequelize.define('task', {
   title: Sequelize.STRING,
-  rating: { type: Sequelize.STRING, defaultValue: 3 }
+  rating: { type: Sequelize.TINYINT, defaultValue: 3 }
 })
  
 // now instantiate an object
@@ -126,6 +126,23 @@ If the `paranoid` options is true, the object will not be deleted, instead the `
 
 ```js
 task.destroy({ force: true })
+```
+
+After an object is soft deleted in `paranoid` mode, you will not be able to create a new instance with the same primary key
+until you have force-deleted the old instance.
+
+## Restoring soft-deleted instances
+
+If you have soft-deleted an instance of a model with `paranoid: true`, and would like to undo the deletion, use the `restore` method:
+
+```js
+Task.create({ title: 'a task' }).then(task => {
+  // now you see me...
+  return task.destroy();
+}).then(() => {
+  // now i'm gone, but wait...
+  return task.restore();
+})
 ```
 
 ## Working in bulk (creating, updating and destroying multiple rows at once)
@@ -302,7 +319,7 @@ In order to increment values of an instance without running into concurrency iss
 First of all you can define a field and the value you want to add to it&period;
 
 ```js
-User.findById(1).then(user => {
+User.findByPk(1).then(user => {
   return user.increment('my-integer-field', {by: 2})
 }).then(user => {
   // Postgres will return the updated user by default (unless disabled by setting { returning: false })
@@ -313,7 +330,7 @@ User.findById(1).then(user => {
 Second&comma; you can define multiple fields and the value you want to add to them&period;
 
 ```js
-User.findById(1).then(user => {
+User.findByPk(1).then(user => {
   return user.increment([ 'my-integer-field', 'my-very-other-field' ], {by: 2})
 }).then(/* ... */)
 ```
@@ -321,7 +338,7 @@ User.findById(1).then(user => {
 Third&comma; you can define an object containing fields and its increment values&period;
 
 ```js
-User.findById(1).then(user => {
+User.findByPk(1).then(user => {
   return user.increment({
     'my-integer-field':    2,
     'my-very-other-field': 3
@@ -336,7 +353,7 @@ In order to decrement values of an instance without running into concurrency iss
 First of all you can define a field and the value you want to add to it&period;
 
 ```js
-User.findById(1).then(user => {
+User.findByPk(1).then(user => {
   return user.decrement('my-integer-field', {by: 2})
 }).then(user => {
   // Postgres will return the updated user by default (unless disabled by setting { returning: false })
@@ -347,7 +364,7 @@ User.findById(1).then(user => {
 Second&comma; you can define multiple fields and the value you want to add to them&period;
 
 ```js
-User.findById(1).then(user => {
+User.findByPk(1).then(user => {
   return user.decrement([ 'my-integer-field', 'my-very-other-field' ], {by: 2})
 }).then(/* ... */)
 ```
@@ -355,7 +372,7 @@ User.findById(1).then(user => {
 Third&comma; you can define an object containing fields and its decrement values&period;
 
 ```js
-User.findById(1).then(user => {
+User.findByPk(1).then(user => {
   return user.decrement({
     'my-integer-field':    2,
     'my-very-other-field': 3

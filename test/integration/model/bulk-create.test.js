@@ -5,8 +5,8 @@ const chai = require('chai'),
   Op = Sequelize.Op,
   Promise = Sequelize.Promise,
   expect = chai.expect,
-  Support = require(__dirname + '/../support'),
-  DataTypes = require(__dirname + '/../../../lib/data-types'),
+  Support = require('../support'),
+  DataTypes = require('../../../lib/data-types'),
   dialect = Support.getTestDialect(),
   _ = require('lodash'),
   current = Support.sequelize;
@@ -111,6 +111,33 @@ describe(Support.getTestDialectTeaser('Model'), () => {
         return User.bulkCreate([
           {name: 'James'}
         ], {validate: true, individualHooks: true});
+      });
+    });
+
+    it('should not map instance dataValues to fields with individualHooks: true', function() {
+      const User = this.sequelize.define('user', {
+        name: Sequelize.STRING,
+        type: {
+          type: Sequelize.STRING,
+          allowNull: false,
+          field: 'user_type'
+        },
+        createdAt: {
+          type: Sequelize.DATE,
+          allowNull: false,
+          field: 'created_at'
+        },
+        updatedAt: {
+          type: Sequelize.DATE,
+          field: 'modified_at'
+        }
+      });
+
+      return User.sync({force: true}).then(() => {
+        return User.bulkCreate([
+          { name: 'James', type: 'A' },
+          { name: 'Alan', type: 'Z' }
+        ], {individualHooks: true});
       });
     });
 
@@ -395,7 +422,8 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       });
     });
 
-    if (current.dialect.supports.ignoreDuplicates) {
+    if (current.dialect.supports.inserts.ignoreDuplicates ||
+        current.dialect.supports.inserts.onConflictDoNothing) {
       it('should support the ignoreDuplicates option', function() {
         const self = this;
         const data = [
@@ -436,7 +464,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       });
     }
 
-    if (current.dialect.supports.updateOnDuplicate) {
+    if (current.dialect.supports.inserts.updateOnDuplicate) {
       describe('updateOnDuplicate', () => {
         it('should support the updateOnDuplicate option', function() {
           const data = [
@@ -561,7 +589,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
 
         return Item.sync({ force: true }).then(() => {
           return Item.bulkCreate([{state: 'in_cart', name: 'A'}, { state: 'available', name: 'B'}]).then(() => {
-            return Item.find({ where: { state: 'available' }}).then(item => {
+            return Item.findOne({ where: { state: 'available' }}).then(item => {
               expect(item.name).to.equal('B');
             });
           });
@@ -599,7 +627,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
           return Maya.bulkCreate([M2]);
         }).spread(m => {
 
-        // only attributes are returned, no fields are mixed
+          // only attributes are returned, no fields are mixed
           expect(m.createdAt).to.be.ok;
           expect(m.created_at).to.not.exist;
           expect(m.secret_given).to.not.exist;

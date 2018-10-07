@@ -9,7 +9,7 @@ In this document we'll explore what finder methods can do:
 ### `find` - Search for one specific element in the database
 ```js
 // search for known ids
-Project.findById(123).then(project => {
+Project.findByPk(123).then(project => {
   // project will be an instance of Project and stores the content of the table entry
   // with id 123. if such an entry is not defined you will get null
 })
@@ -147,11 +147,6 @@ The options object that you pass to `findAndCountAll` is the same as for `findAl
 ```js
 // find multiple entries
 Project.findAll().then(projects => {
-  // projects will be an array of all Project instances
-})
-
-// also possible:
-Project.all().then(projects => {
   // projects will be an array of all Project instances
 })
 
@@ -344,7 +339,7 @@ Project.count({ where: {'id': {[Op.gt]: 25}} }).then(c => {
 
 ### `max` - Get the greatest value of a specific attribute within a specific table
 
-And here is a method for getting the max value of an attribute:f
+And here is a method for getting the max value of an attribute
 
 ```js
 /*

@@ -2,8 +2,8 @@
 
 const chai = require('chai');
 const expect = chai.expect;
-const Support = require(__dirname + '/support');
-const DataTypes = require(__dirname + '/../../lib/data-types');
+const Support = require('./support');
+const DataTypes = require('../../lib/data-types');
 const dialect = Support.getTestDialect();
 const sinon = require('sinon');
 
@@ -14,7 +14,7 @@ describe(Support.getTestDialectTeaser('Replication'), function() {
   let readSpy, writeSpy;
 
   beforeEach(() => {
-    sandbox = sinon.sandbox.create();
+    sandbox = sinon.createSandbox();
 
     this.sequelize = Support.getSequelizeInstance(null, null, null, {
       replication: {

@@ -2,13 +2,14 @@
 
 const chai = require('chai'),
   expect = chai.expect,
-  Support = require(__dirname + '/../support'),
-  Sequelize = require(__dirname + '/../../../index'),
+  Support = require('../support'),
+  Sequelize = require('../../../index'),
   Promise = Sequelize.Promise,
-  DataTypes = require(__dirname + '/../../../lib/data-types');
+  DataTypes = require('../../../lib/data-types'),
+  _ = require('lodash');
 
 describe(Support.getTestDialectTeaser('Include'), () => {
-  describe('find', () => {
+  describe('findOne', () => {
     it('should include a non required model, with conditions and two includes N:M 1:M', function( ) {
       const A = this.sequelize.define('A', { name: DataTypes.STRING(40) }, { paranoid: true }),
         B = this.sequelize.define('B', { name: DataTypes.STRING(40) }, { paranoid: true }),
@@ -30,7 +31,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
       D.hasMany(B);
 
       return this.sequelize.sync({ force: true }).then(() => {
-        return A.find({
+        return A.findOne({
           include: [
             { model: B, required: false, include: [
               { model: C, required: false },
@@ -53,7 +54,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
       Model4.belongsTo(Model2);
 
       return this.sequelize.sync({force: true}).bind(this).then(() => {
-        return Model.find({
+        return Model.findOne({
           include: [
             {model: Model2, include: [
               {model: Model4, where: {something: 2}}
@@ -85,7 +86,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
           {userId: user.get('id'), deletedAt: new Date()}
         ]);
       }).then(() => {
-        return User.find({
+        return User.findOne({
           include: [
             {model: Task, where: {deletedAt: null}, required: false}
           ]
@@ -122,7 +123,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
           {userId: user.get('id'), searchString: 'two'}
         ]);
       }).then(() => {
-        return User.find({
+        return User.findOne({
           include: [
             {model: Task, where: {searchString: 'one'} }
           ]
@@ -159,7 +160,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
           return a.addB(b, { through: {name: 'Foobar'}});
         })
         .then(() => {
-          return A.find({
+          return A.findOne({
             include: [
               {model: B, through: { where: {name: 'Foobar'} }, required: true }
             ]
@@ -191,7 +192,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
           });
         })
         .then(() => {
-          return A.find({
+          return A.findOne({
             where: {name: 'Foobar'},
             include: [
               {model: B, where: {name: 'idontexist'}, required: false}
@@ -226,7 +227,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
       return this.sequelize
         .sync({ force: true })
         .then(() => {
-          return A.find({
+          return A.findOne({
             include: [
               {
                 model: B,
@@ -255,7 +256,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
         return User.create({ username: 'bob' }).then(newUser => {
           return Task.create({ title: 'some task' }).then(newTask => {
             return newTask.setUser(newUser).then(() => {
-              return Task.find({
+              return Task.findOne({
                 where: { title: 'some task' },
                 include: [{ model: User }]
               })
@@ -309,7 +310,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
               promise = promise.then(() => {
                 return model.create(values).then(instance => {
                   if (previousInstance) {
-                    return previousInstance['set'+ Sequelize.Utils.uppercaseFirst(model.name)](instance).then(() => {
+                    return previousInstance['set'+ _.upperFirst(model.name)](instance).then(() => {
                       previousInstance = instance;
                     });
                   } else {
@@ -328,7 +329,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
         ).spread((a, b) => {
           return a.setB(b);
         }).then(() => {
-          return A.find({
+          return A.findOne({
             include: [
               {model: B, include: [
                 {model: C, include: [
@@ -370,7 +371,7 @@ describe(Support.getTestDialectTeaser('Include'), () => {
       Post.belongsTo(User, { foreignKey: 'owner_id', as: 'Owner', constraints: false });
 
       return this.sequelize.sync({force: true}).then(() => {
-        return User.find({
+        return User.findOne({
           where: { id: 2 },
           include: [
             { model: Post, as: 'UserPosts', where: {'private': true} }

@@ -1,10 +1,10 @@
 'use strict';
 
-const Support   = require(__dirname + '/../support'),
+const Support = require('../support'),
   expectsql = Support.expectsql,
-  current   = Support.sequelize,
-  sql       = current.dialect.QueryGenerator,
-  Op        = current.Op;
+  current = Support.sequelize,
+  sql = current.dialect.QueryGenerator,
+  Op = Support.Sequelize.Op;
 
 // Notice: [] will be replaced by dialect specific tick/quote character when there is not dialect specific expectation but only a default expectation
 
@@ -37,7 +37,7 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
       }
     });
 
-    test('type and method', () => {
+    test('type and using', () => {
       expectsql(sql.addIndexQuery('User', ['fieldC'], {
         type: 'FULLTEXT',
         concurrently: true
@@ -51,7 +51,7 @@ suite(Support.getTestDialectTeaser('SQL'), () => {
       expectsql(sql.addIndexQuery('User', ['fieldB', {attribute: 'fieldA', collate: 'en_US', order: 'DESC', length: 5}], {
         name: 'a_b_uniq',
         unique: true,
-        method: 'BTREE',
+        using: 'BTREE',
         parser: 'foo'
       }), {
         sqlite: 'CREATE UNIQUE INDEX `a_b_uniq` ON `User` (`fieldB`, `fieldA` COLLATE `en_US` DESC)',
